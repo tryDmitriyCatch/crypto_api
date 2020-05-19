@@ -6,13 +6,13 @@ use App\Entity\UserEntity;
 use App\Services\FindUserService;
 use App\Services\Traits\DemTrait;
 use App\Utils\PasswordUtils;
-use App\Utils\UUID;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use JsonException;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
@@ -43,58 +43,46 @@ class ApiUserController extends AbstractController
     }
 
     /**
-     * Create new user
+     * Get User Information
      *
-     * @Route("/api/user/create", name="api_user_create")
-     * @Method({"POST"})
-     * @param Request $request
-     * @return JsonResponse
-     * @throws JsonException
-     */
-    public function userCreateAction(Request $request): JsonResponse
-    {
-        $newUser = $this->createUser($request);
-        return new JsonResponse([
-            'status' => 'ok',
-            'message' => 'User has been successfully created',
-            'data' => json_decode($newUser->getContent(), true, 512, JSON_THROW_ON_ERROR),
-        ]);
-    }
-
-    /**
-     * @param Request $request
-     * @return JsonResponse
-     */
-    protected function createUser($request): JsonResponse
-    {
-        $userEntity = (new UserEntity())
-            ->setToken(UUID::generate())
-            ->setName($request->get('name'))
-            ->setSurname($request->get('surname'))
-            ->setEmail($request->get('email'))
-            ->setPassword(PasswordUtils::hashPassword($request->get('password')));
-
-        $this->persist($userEntity, true);
-
-        return $this->json([
-            'id' => $userEntity->getId(),
-            'name' => $userEntity->getName(),
-            'surname' => $userEntity->getSurname(),
-            'email' => $userEntity->getEmail(),
-        ]);
-    }
-
-    /**
-     * Gets user information
+     * #### Response example (JSON) ###
      *
-     * @Route("/api/user/{id}", name="api_user_view")
+     *     {
+     *       "status": "ok",
+     *       "data":  {
+     *           "id": 3,
+     *           "name": "Name",
+     *           "surname": "Surname",
+     *           "email": "example@email.com",
+     *           "assets": []
+     *           },
+     *     }
+     *
+     * @ApiDoc(
+     *  section="User Actions",
+     *  resource=true,
+     *  description="Gets requested user's information",
+     *  parameters={
+     *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
+     *      {"name"="id", "dataType"="string", "required"=true, "format"="1", "description"="Users's Unique ID"},
+     *  },
+     *  statusCodes={
+     *      200="Success",
+     *      404="User not found",
+     *      500="Technical Problems Processing the Request"
+     *  }
+     * )
+     * @Route("/api/user/", name="api_user_view")
      * @Method({"GET"})
      * @param Request $request
      * @return JsonResponse
-     * @throws JsonException
      */
     public function userIndexAction(Request $request): JsonResponse
     {
+        if (empty($request->get('token'))) {
+            $this->buildTokenMissingResponse();
+        }
+
         /* @var UserEntity $userEntity */
         $user = $this->getUserById($request->get('id'));
 
@@ -105,7 +93,18 @@ class ApiUserController extends AbstractController
 
         return $this->json([
             'status' => 'ok',
-            'data' => json_decode($user->getContent(), true, 512, JSON_THROW_ON_ERROR),
+            'data' => json_decode($user->getContent(), true),
+        ]);
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    protected function buildTokenMissingResponse(): JsonResponse
+    {
+        return new JsonResponse([
+            'status'   => 'error',
+            'message'  => 'Token is missing',
         ]);
     }
 
@@ -145,16 +144,50 @@ class ApiUserController extends AbstractController
     }
 
     /**
-     * Edit user information
+     * Edit User Information
      *
-     * @Route("/api/user/{id}/update", name="api_user_update")
-     * @Method({"PUT"})
+     * #### Response example (JSON) ###
+     *
+     *     {
+     *       "status": "ok",
+     *       "message" => "User has been successfully updated",
+     *       "data":  {
+     *           "id": 3,
+     *           "name": "Name",
+     *           "surname": "Surname",
+     *           "email": "example@email.com",
+     *           "assets": []
+     *           },
+     *     }
+     *
+     * @ApiDoc(
+     *  section="User Actions",
+     *  resource=true,
+     *  description="Edit requested user's information",
+     *  parameters={
+     *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
+     *      {"name"="name", "dataType"="string", "required"=true, "format"="John", "description"="Users's Name"},
+     *      {"name"="surname", "dataType"="string", "required"=true, "format"="Doe", "description"="Users's Surname"},
+     *      {"name"="email", "dataType"="string", "required"=true, "format"="example@email.com", "description"="Users's Personal Code"},
+     *      {"name"="password", "dataType"="string", "required"=true, "format"="test", "description"="Users's Password"},
+     *  },
+     *  statusCodes={
+     *      200="Success",
+     *      404="User not found",
+     *      500="Technical Problems Processing the Request"
+     *  }
+     * )
+     * @Route("/api/user/", name="api_user_update")
+     * @Method({"PUT", "PATCH"})
      * @param Request $request
      * @return JsonResponse
-     * @throws JsonException
      */
     public function userEditAction(Request $request): JsonResponse
     {
+        if (empty($request->get('token'))) {
+            $this->buildTokenMissingResponse();
+        }
+
         /* @var UserEntity $userEntity */
         $updatedUser = $this->updateUser($request);
 
@@ -166,7 +199,7 @@ class ApiUserController extends AbstractController
         return new JsonResponse([
             'status' => 'ok',
             'message' => 'User has been successfully updated',
-            'data' => json_decode($updatedUser->getContent(), true, 512, JSON_THROW_ON_ERROR),
+            'data' => json_decode($updatedUser->getContent(), true),
         ]);
     }
 
@@ -189,6 +222,7 @@ class ApiUserController extends AbstractController
             ->setName($request->get('name'))
             ->setSurname($request->get('surname'))
             ->setEmail($request->get('email'))
+            ->setUpdatedAt(new DateTimeImmutable())
             ->setPassword(PasswordUtils::hashPassword($request->get('password')));
 
         $this->flush();
@@ -203,10 +237,31 @@ class ApiUserController extends AbstractController
     }
 
     /**
-     * Delete user
+     * Delete User
      *
-     * @Route("/api/user/{id}/delete", name="api_user_delete")
-     * @Method({"PUT"})
+     * #### Response example (JSON) ###
+     *
+     *     {
+     *       "status": "ok",
+     *       "message" => "User has been successfully deleted",
+     *     }
+     *
+     * @ApiDoc(
+     *  section="User Actions",
+     *  resource=true,
+     *  description="Delete's User",
+     *  parameters={
+     *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
+     *      {"name"="id", "dataType"="string", "required"=true, "format"="1", "description"="Users's Unique ID"},
+     *  },
+     *  statusCodes={
+     *      200="Success",
+     *      404="User not found",
+     *      500="Technical Problems Processing the Request"
+     *  }
+     * )
+     * @Route("/api/user/", name="api_user_delete")
+     * @Method({"DELETE"})
      * @param Request $request
      * @return JsonResponse
      */
