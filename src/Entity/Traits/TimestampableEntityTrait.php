@@ -49,7 +49,7 @@ trait TimestampableEntityTrait
     /**
      * @return DateTimeImmutable
      */
-    public function getUpdatedAt(): DateTimeImmutable
+    public function getUpdatedAt()
     {
         return DateTimeImmutable::createFromMutable($this->updatedAt);
     }
@@ -58,7 +58,7 @@ trait TimestampableEntityTrait
      * @param DateTimeImmutable $updatedAt
      * @return $this
      */
-    public function setUpdatedAt(DateTimeImmutable $updatedAt): self
+    public function setUpdatedAt(DateTimeImmutable $updatedAt)
     {
         $this->updatedAt = DateTime::createFromImmutable($updatedAt);
 
