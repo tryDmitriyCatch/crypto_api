@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Table(name="crypto_asset")
- * @ORM\Entity(repositoryClass="App\Repository\UserEntityRepository")
+ * @ORM\Entity(repositoryClass="App\Repository\AssetEntityRespository")
  */
 class AssetEntity
 {
@@ -116,10 +116,13 @@ class AssetEntity
 
     /**
      * @param string $label
+     * @return AssetEntity
      */
-    public function setLabel(string $label): void
+    public function setLabel(string $label): self
     {
         $this->label = $label;
+
+        return $this;
     }
 
     /**
@@ -132,10 +135,13 @@ class AssetEntity
 
     /**
      * @param string $value
+     * @return AssetEntity
      */
-    public function setValue(string $value): void
+    public function setValue(string $value): self
     {
         $this->value = $value;
+
+        return $this;
     }
 
     /**
@@ -150,9 +156,10 @@ class AssetEntity
      * @param UserEntity|null $user
      * @return AssetEntity
      */
-    public function setLkuUser(?UserEntity $user): AssetEntity
+    public function setUser(?UserEntity $user): AssetEntity
     {
         $this->user = $user;
+
         return $this;
     }
 }
