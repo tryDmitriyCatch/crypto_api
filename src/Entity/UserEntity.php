@@ -55,7 +55,7 @@ class UserEntity
     private $surname;
 
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\AssetEntity", mappedBy="UserEntity")
+     * @ORM\OneToMany(targetEntity="App\Entity\AssetEntity", mappedBy="user")
      */
     private $assets;
 
@@ -180,12 +180,21 @@ class UserEntity
     }
 
     /**
-     * Get user assets
-     *
      * @return mixed
      */
     public function getAssets()
     {
         return $this->assets;
+    }
+
+    /**
+     * @param AssetEntity $assets
+     * @return UserEntity
+     */
+    public function setAssets(AssetEntity $assets): UserEntity
+    {
+        $this->assets = $assets;
+
+        return $this;
     }
 }

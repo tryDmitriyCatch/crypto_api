@@ -2,13 +2,14 @@
 
 namespace App\Controller;
 
+use App\Entity\AssetEntity;
 use App\Entity\UserEntity;
-use App\Services\FindUserService;
+use App\Services\ExchangeAPIService;
+use App\Services\FindUserDataService;
 use App\Services\Traits\DemTrait;
 use App\Utils\PasswordUtils;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,22 +25,30 @@ class ApiUserController extends AbstractController
     use DemTrait;
 
     /**
-     * @var FindUserService $findUserService
+     * @var FindUserDataService $findUserService
      */
     private $findUserService;
 
     /**
+     * @var ExchangeAPIService $exchangeService
+     */
+    private $exchangeService;
+
+    /**
      * ApiUserController constructor.
      * @param EntityManagerInterface $entityManager
-     * @param FindUserService $findUserService
+     * @param FindUserDataService $findUserService
+     * @param ExchangeAPIService $exchangeService
      */
     public function __construct(
         EntityManagerInterface $entityManager,
-        FindUserService $findUserService
+        FindUserDataService $findUserService,
+        ExchangeAPIService $exchangeService
     )
     {
         $this->dem = $entityManager;
         $this->findUserService = $findUserService;
+        $this->exchangeService = $exchangeService;
     }
 
     /**
@@ -54,8 +63,15 @@ class ApiUserController extends AbstractController
      *           "name": "Name",
      *           "surname": "Surname",
      *           "email": "example@email.com",
-     *           "assets": []
-     *           },
+     *           "assets": [
+     *               {
+     *               "id": 1,
+     *               "label": "bike",
+     *               "value": "1.99",
+     *               "currency": 1
+     *               },
+     *            ]
+     *         },
      *     }
      *
      * @ApiDoc(
@@ -71,8 +87,7 @@ class ApiUserController extends AbstractController
      *      500="Technical Problems Processing the Request"
      *  }
      * )
-     * @Route("/api/user/", name="api_user_view")
-     * @Method({"GET"})
+     * @Route("/api/user/", name="api_user_view", methods={"GET"})
      * @param Request $request
      * @return JsonResponse
      */
@@ -93,7 +108,7 @@ class ApiUserController extends AbstractController
         return $this->json([
             'status' => 'ok',
             'data' => json_decode($user->getContent(), true),
-        ]);
+        ], Response::HTTP_OK);
     }
 
     /**
@@ -101,7 +116,7 @@ class ApiUserController extends AbstractController
      */
     protected function buildTokenMissingResponse(): JsonResponse
     {
-        return new JsonResponse([
+        return $this->json([
             'status'   => 'error',
             'message'  => 'Token is missing',
         ]);
@@ -113,9 +128,7 @@ class ApiUserController extends AbstractController
      */
     protected function getUserByToken($token)
     {
-        /**
-         * @var UserEntity|null
-         */
+        /** @var UserEntity|null */
         $userEntity = $this->findUserService->getUserByToken($token);
 
         if (is_null($userEntity)) {
@@ -127,7 +140,7 @@ class ApiUserController extends AbstractController
             'name' => $userEntity->getName(),
             'surname' => $userEntity->getSurname(),
             'email' => $userEntity->getEmail(),
-            'assets' => $userEntity->getAssets(),
+            'assets' => $this->findUserService->returnArrayOfUserAssets($userEntity->getId()),
         ]);
     }
 
@@ -149,14 +162,20 @@ class ApiUserController extends AbstractController
      *
      *     {
      *       "status": "ok",
-     *       "message" => "User has been successfully updated",
      *       "data":  {
      *           "id": 3,
      *           "name": "Name",
      *           "surname": "Surname",
      *           "email": "example@email.com",
-     *           "assets": []
-     *           },
+     *           "assets": [
+     *               {
+     *               "id": 1,
+     *               "label": "bike",
+     *               "value": "1.99",
+     *               "currency": 1
+     *               },
+     *            ]
+     *         },
      *     }
      *
      * @ApiDoc(
@@ -176,8 +195,7 @@ class ApiUserController extends AbstractController
      *      500="Technical Problems Processing the Request"
      *  }
      * )
-     * @Route("/api/user/", name="api_user_update")
-     * @Method({"PUT", "PATCH"})
+     * @Route("/api/user/", name="api_user_update", methods={"PUT", "PATCH"})
      * @param Request $request
      * @return JsonResponse
      */
@@ -195,11 +213,11 @@ class ApiUserController extends AbstractController
             return $this->buildUserNotFoundResponse();
         }
 
-        return new JsonResponse([
+        return $this->json([
             'status' => 'ok',
             'message' => 'User has been successfully updated',
             'data' => json_decode($updatedUser->getContent(), true),
-        ]);
+        ], Response::HTTP_OK);
     }
 
     /**
@@ -231,7 +249,7 @@ class ApiUserController extends AbstractController
             'name' => $userEntity->getName(),
             'surname' => $userEntity->getSurname(),
             'email' => $userEntity->getEmail(),
-            'assets' => $userEntity->getAssets(),
+            'assets' => $this->findUserService->returnArrayOfUserAssets($userEntity->getId()),
         ]);
     }
 
@@ -258,8 +276,7 @@ class ApiUserController extends AbstractController
      *      500="Technical Problems Processing the Request"
      *  }
      * )
-     * @Route("/api/user/", name="api_user_delete")
-     * @Method({"DELETE"})
+     * @Route("/api/user/", name="api_user_delete", methods={"DELETE"})
      * @param Request $request
      * @return JsonResponse
      */
@@ -267,10 +284,10 @@ class ApiUserController extends AbstractController
     {
         $this->deleteUser($request);
 
-        return new JsonResponse([
+        return $this->json([
             'status' => 'ok',
             'message' => 'User has been successfully deleted',
-        ]);
+        ], Response::HTTP_OK);
     }
 
     /**
