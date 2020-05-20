@@ -64,7 +64,6 @@ class ApiUserController extends AbstractController
      *  description="Gets requested user's information",
      *  parameters={
      *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
-     *      {"name"="id", "dataType"="string", "required"=true, "format"="1", "description"="Users's Unique ID"},
      *  },
      *  statusCodes={
      *      200="Success",
@@ -80,15 +79,15 @@ class ApiUserController extends AbstractController
     public function userIndexAction(Request $request): JsonResponse
     {
         if (empty($request->get('token'))) {
-            $this->buildTokenMissingResponse();
+            return $this->buildTokenMissingResponse();
         }
 
         /* @var UserEntity $userEntity */
-        $user = $this->getUserById($request->get('id'));
+        $user = $this->getUserByToken($request->get('token'));
 
         if (is_null($user) && !$user instanceof UserEntity)
         {
-            $this->buildUserNotFoundResponse();
+            return $this->buildUserNotFoundResponse();
         }
 
         return $this->json([
@@ -109,18 +108,18 @@ class ApiUserController extends AbstractController
     }
 
     /**
-     * @param string $id
+     * @param string $token
      * @return object|null
      */
-    protected function getUserById($id)
+    protected function getUserByToken($token)
     {
         /**
          * @var UserEntity|null
          */
-        $userEntity = $this->findUserService->getUserById($id);
+        $userEntity = $this->findUserService->getUserByToken($token);
 
         if (is_null($userEntity)) {
-            throw $this->createNotFoundException();
+            return $this->buildTokenMissingResponse();
         }
 
         return $this->json([
@@ -185,7 +184,7 @@ class ApiUserController extends AbstractController
     public function userEditAction(Request $request): JsonResponse
     {
         if (empty($request->get('token'))) {
-            $this->buildTokenMissingResponse();
+            return $this->buildTokenMissingResponse();
         }
 
         /* @var UserEntity $userEntity */
@@ -193,7 +192,7 @@ class ApiUserController extends AbstractController
 
         if (is_null($updatedUser) && !$updatedUser instanceof UserEntity)
         {
-            $this->buildUserNotFoundResponse();
+            return $this->buildUserNotFoundResponse();
         }
 
         return new JsonResponse([
@@ -212,10 +211,10 @@ class ApiUserController extends AbstractController
         /**
          * @var UserEntity|null
          */
-        $userEntity = $this->findUserService->getUserById($request->get('id'));
+        $userEntity = $this->findUserService->getUserByToken($request->get('token'));
 
         if (is_null($userEntity)) {
-            throw $this->createNotFoundException();
+            return $this->buildTokenMissingResponse();
         }
 
         $userEntity
@@ -252,7 +251,6 @@ class ApiUserController extends AbstractController
      *  description="Delete's User",
      *  parameters={
      *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
-     *      {"name"="id", "dataType"="string", "required"=true, "format"="1", "description"="Users's Unique ID"},
      *  },
      *  statusCodes={
      *      200="Success",
@@ -277,17 +275,17 @@ class ApiUserController extends AbstractController
 
     /**
      * @param Request $request
-     * @return void
+     * @return JsonResponse
      */
-    protected function deleteUser($request): void
+    protected function deleteUser($request): JsonResponse
     {
         /**
          * @var UserEntity|null
          */
-        $userEntity = $this->findUserService->getUserById($request->get('id'));
+        $userEntity = $this->findUserService->getUserByToken($request->get('token'));
 
         if (is_null($userEntity)) {
-            throw $this->createNotFoundException();
+            return $this->buildTokenMissingResponse();
         }
 
         $this->remove($userEntity);

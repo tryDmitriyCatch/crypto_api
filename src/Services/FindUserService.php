@@ -24,11 +24,11 @@ class FindUserService
     }
 
     /**
-     * @param string $id
+     * @param string $token
      * @return object|null
      */
-    public function getUserById($id): ?object
+    public function getUserByToken($token): ?object
     {
-        return $this->getRepository(UserEntity::class)->find($id);
+        return $this->getRepository(UserEntity::class)->findByToken($token);
     }
 }
