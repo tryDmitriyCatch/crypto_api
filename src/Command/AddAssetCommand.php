@@ -2,10 +2,9 @@
 
 namespace App\Command;
 
+use App\Entity\AssetEntity;
 use App\Entity\UserEntity;
 use App\Services\Traits\DemTrait;
-use App\Utils\PasswordUtils;
-use App\Utils\UUID;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -42,17 +41,17 @@ class AddAssetCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): void
     {
-        for ($x = 1; $x <= 6; $x++) {
+        $userEntity = $this->getRepository(UserEntity::class)->find(1);
+        for ($x = 1; $x <= 3; $x++) {
             try {
-                $userEntity = (new UserEntity())
-                    ->setToken(UUID::generate())
-                    ->setName('Test' . $x)
-                    ->setSurname('Testovskis' . $x)
-                    ->setEmail('test@test' . $x . '.com')
+                $assetEntity = (new AssetEntity())
+                    ->setLabel('Bike' . $x)
+                    ->setValue($x . '.99')
+                    ->setCurrency($x)
                     ->setCreatedAt(new DateTimeImmutable())
-                    ->setPassword(PasswordUtils::hashPassword('Test' . $x));
+                    ->setUser($userEntity);
 
-                $this->persist($userEntity, true);
+                $this->persist($assetEntity, true);
             } catch (Exception $ex) {
                 $output->writeln($ex->getMessage());
             }

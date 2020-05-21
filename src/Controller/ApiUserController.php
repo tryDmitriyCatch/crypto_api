@@ -2,9 +2,8 @@
 
 namespace App\Controller;
 
-use App\Entity\AssetEntity;
 use App\Entity\UserEntity;
-use App\Services\ExchangeAPIService;
+use App\Exception\AppException;
 use App\Services\FindUserDataService;
 use App\Services\Traits\DemTrait;
 use App\Utils\PasswordUtils;
@@ -16,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Class ApiUserController
@@ -25,30 +25,30 @@ class ApiUserController extends AbstractController
     use DemTrait;
 
     /**
+     * @var TranslatorInterface
+     */
+    private $translator;
+
+    /**
      * @var FindUserDataService $findUserService
      */
     private $findUserService;
 
     /**
-     * @var ExchangeAPIService $exchangeService
-     */
-    private $exchangeService;
-
-    /**
      * ApiUserController constructor.
      * @param EntityManagerInterface $entityManager
      * @param FindUserDataService $findUserService
-     * @param ExchangeAPIService $exchangeService
+     * @param TranslatorInterface $translator
      */
     public function __construct(
         EntityManagerInterface $entityManager,
         FindUserDataService $findUserService,
-        ExchangeAPIService $exchangeService
+        TranslatorInterface $translator
     )
     {
         $this->dem = $entityManager;
         $this->findUserService = $findUserService;
-        $this->exchangeService = $exchangeService;
+        $this->translator = $translator;
     }
 
     /**
@@ -90,6 +90,7 @@ class ApiUserController extends AbstractController
      * @Route("/api/user/", name="api_user_view", methods={"GET"})
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     public function userIndexAction(Request $request): JsonResponse
     {
@@ -118,13 +119,14 @@ class ApiUserController extends AbstractController
     {
         return $this->json([
             'status'   => 'error',
-            'message'  => 'Token is missing',
+            'message'  => $this->translator->trans('asset_token_not_found'),
         ]);
     }
 
     /**
      * @param string $token
      * @return object|null
+     * @throws AppException
      */
     protected function getUserByToken($token)
     {
@@ -151,7 +153,7 @@ class ApiUserController extends AbstractController
     {
         return $this->json([
             'status' => 'error',
-            'message' => 'User not found',
+            'message' => $this->translator->trans('user_not_found'),
         ], Response::HTTP_NOT_FOUND);
     }
 
@@ -198,6 +200,7 @@ class ApiUserController extends AbstractController
      * @Route("/api/user/", name="api_user_update", methods={"PUT", "PATCH"})
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     public function userEditAction(Request $request): JsonResponse
     {
@@ -215,7 +218,7 @@ class ApiUserController extends AbstractController
 
         return $this->json([
             'status' => 'ok',
-            'message' => 'User has been successfully updated',
+            'message' => $this->translator->trans('user_updated'),
             'data' => json_decode($updatedUser->getContent(), true),
         ], Response::HTTP_OK);
     }
@@ -223,6 +226,7 @@ class ApiUserController extends AbstractController
     /**
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     protected function updateUser($request): JsonResponse
     {
@@ -286,7 +290,7 @@ class ApiUserController extends AbstractController
 
         return $this->json([
             'status' => 'ok',
-            'message' => 'User has been successfully deleted',
+            'message' => $this->translator->trans('user_deleted'),
         ], Response::HTTP_OK);
     }
 

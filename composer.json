@@ -21,8 +21,7 @@
         "symfony/translation": "5.0.*",
         "symfony/twig-bundle": "5.0.*",
         "symfony/validator": "5.0.*",
-        "symfony/yaml": "5.0.*",
-        "ext-http": "*"
+        "symfony/yaml": "5.0.*"
     },
     "require-dev": {
         "symfony/maker-bundle": "^1.18",

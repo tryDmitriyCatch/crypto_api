@@ -4,9 +4,10 @@ namespace App\Controller;
 
 use App\Entity\AssetEntity;
 use App\Entity\UserEntity;
-use App\Services\ExchangeAPIService;
+use App\Exception\AppException;
 use App\Services\FindUserDataService;
 use App\Services\Traits\DemTrait;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,6 +15,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Class ApiAssetsController
@@ -23,30 +30,92 @@ class ApiAssetsController extends AbstractController
     use DemTrait;
 
     /**
+     * @var TranslatorInterface
+     */
+    private $translator;
+
+    /**
      * @var FindUserDataService $findUserService
      */
     private $findUserService;
 
     /**
-     * @var ExchangeAPIService $exchangeService
-     */
-    private $exchangeService;
-
-    /**
      * ApiAssetsController constructor.
      * @param EntityManagerInterface $entityManager
-     * @param ExchangeAPIService $exchangeService
      * @param FindUserDataService $findUserService
+     * @param TranslatorInterface $translator
      */
     public function __construct(
         EntityManagerInterface $entityManager,
-        ExchangeAPIService $exchangeService,
-        FindUserDataService $findUserService
+        FindUserDataService $findUserService,
+        TranslatorInterface $translator
     )
     {
         $this->dem = $entityManager;
-        $this->exchangeService = $exchangeService;
         $this->findUserService = $findUserService;
+        $this->translator = $translator;
+    }
+
+    /**
+     * Get User's Assets
+     *
+     * #### Response example (JSON) ###
+     *
+     *     {
+     *       "status": "created",
+     *       "data":  {
+     *           "id": 1,
+     *           "label": "bike",
+     *           "value": "1.99",
+     *           "currency": 1,
+     *           "value_in_USD": "18035.708 USD",
+     *        }, {
+     *           "id": 2,
+     *           "label": "House",
+     *           "value": "1.99",
+     *           "currency": 1,
+     *           "value_in_USD": "18035.708 USD",
+     *        },
+     *     }
+     *
+     * @ApiDoc(
+     *  section="User Asset Actions",
+     *  resource=true,
+     *  description="Gets all assets",
+     *  parameters={
+     *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
+     *  },
+     *  statusCodes={
+     *      201="Success",
+     *      404="Asset not found",
+     *      500="Technical Problems Processing the Request"
+     *  }
+     * )
+     * @Route("/api/asset/index", name="api_asset_index", methods={"GET"})
+     * @param Request $request
+     * @return JsonResponse
+     * @throws AppException
+     * @throws ClientExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws TransportExceptionInterface
+     */
+    public function userAssetIndexAction(Request $request): JsonResponse
+    {
+        if (empty($request->get('token'))) {
+            return $this->buildTokenAndIdMissingResponse();
+        }
+
+        /* @var UserEntity $userEntity */
+        $userEntity = $this->getRepository(UserEntity::class)->findByToken($request->get('token'));
+        $assetEntity = $this->getRepository(AssetEntity::class)->findByUserId($userEntity->getId());
+
+        return $this->json([
+            'status' => 'success',
+            'data' => $this->findUserService->returnArrayOfUserAssets(null, $assetEntity),
+            'total_assets_in_USD' => $this->findUserService->returnTotalAssetValuesInUsd($assetEntity),
+        ], Response::HTTP_OK);
     }
 
     /**
@@ -83,6 +152,7 @@ class ApiAssetsController extends AbstractController
      * @Route("/api/asset/create", name="api_asset_create", methods={"POST"})
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     public function userAssetCreateAction(Request $request): JsonResponse
     {
@@ -113,6 +183,7 @@ class ApiAssetsController extends AbstractController
             ->setLabel($request->get('label'))
             ->setCurrency($request->get('currency'))
             ->setValue($request->get('value'))
+            ->setCreatedAt(new DateTimeImmutable())
             ->setUser($this->getRepository(UserEntity::class)->findByToken($request->get('token')));
 
         $this->persist($assetEntity, true);
@@ -121,7 +192,7 @@ class ApiAssetsController extends AbstractController
     }
 
     /**
-     * Get User's Assets
+     * Get User's Asset
      *
      * #### Response example (JSON) ###
      *
@@ -131,14 +202,15 @@ class ApiAssetsController extends AbstractController
      *           "id": 1,
      *           "label": "bike",
      *           "value": "1.99",
-     *           "currency": 1
+     *           "currency": 1,
+     *           "value_in_USD": "18048.818 USD",
      *        },
      *     }
      *
      * @ApiDoc(
      *  section="User Asset Actions",
      *  resource=true,
-     *  description="Gets requested user's assets",
+     *  description="Gets requested user's asset",
      *  parameters={
      *      {"name"="token", "dataType"="string", "required"=true, "format"="55a660e5-85ee-530c-2791-c25b7a2b0216", "description"="API Token Key"},
      *      {"name"="asset_id", "dataType"="string", "required"="true", "format"="1", "description"="Asset Unique ID"},
@@ -152,8 +224,9 @@ class ApiAssetsController extends AbstractController
      * @Route("/api/asset/{asset_id}", name="api_user_asset", methods={"GET"})
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
-    public function userAssetIndexAction(Request $request): JsonResponse
+    public function userAssetViewAction(Request $request): JsonResponse
     {
         if (empty($request->get('token')) && empty($request->get('asset_id'))) {
             return $this->buildTokenAndIdMissingResponse();
@@ -185,7 +258,8 @@ class ApiAssetsController extends AbstractController
      *           "id": 1,
      *           "label": "bike",
      *           "value": "1.99",
-     *           "currency": 1
+     *           "currency": 1,
+     *           "value_in_USD": "18048.818 USD",
      *        },
      *     }
      *
@@ -209,6 +283,7 @@ class ApiAssetsController extends AbstractController
      * @Route("/api/asset/update", name="api_asset_update", methods={"PUT", "PATCH"})
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     public function userAssetUpdateAction(Request $request): JsonResponse
     {
@@ -225,7 +300,7 @@ class ApiAssetsController extends AbstractController
 
         return $this->json([
             'status' => 'success',
-            'message' => 'Asset has been successfully updated',
+            'message' => $this->translator->trans('asset_updated'),
             'data' => json_decode($assetEntity->getContent(), true),
         ], Response::HTTP_OK);
     }
@@ -269,11 +344,11 @@ class ApiAssetsController extends AbstractController
             return $this->buildMissingParametersResponse();
         }
 
-        $assetEntity = $this->deleteAsset($request);
+        $this->deleteAsset($request);
 
         return $this->json([
             'status' => 'success',
-            'message' => 'Asset has been successfully deleted',
+            'message' => $this->translator->trans('asset_deleted'),
         ], Response::HTTP_OK);
     }
 
@@ -297,6 +372,7 @@ class ApiAssetsController extends AbstractController
     /**
      * @param Request $request
      * @return JsonResponse
+     * @throws AppException
      */
     protected function updateAsset($request): JsonResponse
     {
@@ -310,7 +386,8 @@ class ApiAssetsController extends AbstractController
         $assetEntity
             ->setLabel($request->get('label'))
             ->setCurrency($request->get('currency'))
-            ->setValue($request->get('value'));
+            ->setValue($request->get('value'))
+            ->setUpdatedAt(new DateTimeImmutable());
 
         $this->flush();
 
@@ -319,12 +396,14 @@ class ApiAssetsController extends AbstractController
             'label' => $assetEntity->getLabel(),
             'value' => $assetEntity->getValue(),
             'currency' => $assetEntity->getCurrency(),
+            'value_in_USD' => $this->findUserService->getCurrentAssetExchangeRateSum($assetEntity),
         ]);
     }
 
     /**
      * @param AssetEntity $assetEntity
      * @return array
+     * @throws AppException
      */
     protected function getAssetDataAsArray($assetEntity): array
     {
@@ -333,6 +412,7 @@ class ApiAssetsController extends AbstractController
             'label' => $assetEntity->getLabel(),
             'value' => $assetEntity->getValue(),
             'currency' => $assetEntity->getCurrency(),
+            'value_in_USD' => $this->findUserService->getCurrentAssetExchangeRateSum($assetEntity),
         ];
     }
 
@@ -343,7 +423,7 @@ class ApiAssetsController extends AbstractController
     {
         return $this->json([
             'status'   => 'error',
-            'message'  => 'Token and/or ID is missing',
+            'message'  => $this->translator->trans('asset_token_not_found'),
         ], Response::HTTP_BAD_REQUEST);
     }
 
@@ -354,7 +434,7 @@ class ApiAssetsController extends AbstractController
     {
         return $this->json([
             'status' => 'error',
-            'message' => 'Asset not found',
+            'message' => $this->translator->trans('asset_not_found'),
         ], Response::HTTP_BAD_REQUEST);
     }
 
@@ -365,7 +445,7 @@ class ApiAssetsController extends AbstractController
     {
         return $this->json([
             'status' => 'error',
-            'message' => 'One or more parameters missing',
+            'message' => $this->translator->trans('asset_params_missing'),
         ], Response::HTTP_BAD_REQUEST);
     }
 }

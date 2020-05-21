@@ -1,0 +1,8 @@
+asset_updated: 'Asset has been successfully updated'
+asset_deleted: 'Asset has been successfully deleted'
+asset_not_found: 'Asset not found'
+asset_params_missing: 'One or more parameters missing'
+asset_token_not_found: 'Token and/or ID is missing'
+user_not_found: 'User not found'
+user_updated: 'User has been successfully updated'
+user_deleted: 'User has been successfully deleted'

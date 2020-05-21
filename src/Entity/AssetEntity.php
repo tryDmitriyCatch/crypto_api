@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Table(name="crypto_asset")
- * @ORM\Entity(repositoryClass="App\Repository\AssetEntityRespository")
+ * @ORM\Entity(repositoryClass="App\Repository\AssetEntityRepository")
  */
 class AssetEntity
 {

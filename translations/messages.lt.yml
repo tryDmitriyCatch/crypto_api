@@ -1,0 +1,8 @@
+asset_updated: 'Naudotojo turtas buvo sėkmingai atnaujintas'
+asset_deleted: 'Naudotojo turtas buvo sėkmingai ištrintas'
+asset_not_found: 'Turtas nerastas'
+asset_params_missing: 'Truksta vieno arba daugiau parametrų'
+asset_token_not_found: 'Tokenas ir/arba ID parametras nerastas'
+user_not_found: 'Vartotojas nerastas'
+user_updated: 'Vartotojo duomenis sėkmingai atnaujinti'
+user_deleted: 'Vartotojas buvo sėkmingai ištrintas'
