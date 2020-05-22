@@ -15,7 +15,7 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  */
 class ExchangeAPIService
 {
-    public const API_KEY = '&apikey=4ACD4922-D788-4B2C-951D-A81ACB231A0A';
+    public const API_KEY = '?apikey=4ACD4922-D788-4B2C-951D-A81ACB231A0A';
     public const URL_EXCHANGE = 'https://rest.coinapi.io/v1/exchangerate/';
 
     /**
